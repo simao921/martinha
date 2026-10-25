@@ -3,8 +3,8 @@ import Lenis from 'lenis';
 import { supabase, supabaseConfigured } from './supabase.js';
 
 const photos = {
-  heroBefore: '/images/sala-antes.png',
-  heroAfter: '/images/sala-depois.avif',
+  heroBefore: '/images/sala-depois.avif',
+  heroAfter: '/images/sala-antes.png',
   living: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1000&q=85',
   bedroom: 'https://images.unsplash.com/photo-1616486029423-aaa4789e8c9a?auto=format&fit=crop&w=1000&q=85',
   work: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1000&q=85',
