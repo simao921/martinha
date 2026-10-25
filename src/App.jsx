@@ -183,13 +183,83 @@ function PlanStudio({ showToast }) {
     if (!dragRef.current || dragRef.current.id !== id || !canvasRef.current) return;
     const bounds = canvasRef.current.getBoundingClientRect();
     const snap = (value) => Math.max(3, Math.min(97, Math.round(value / 2) * 2));
-    setPlan((current) => current.map((item) => item.id === id
-      ? { ...item, x: snap(((event.clientX - bounds.left) / bounds.width) * 100), y: snap(((event.clientY - bounds.top) / bounds.height) * 100) }
-      : item));
+    const moving = plan.find((item) => item.id === id);
+    const pointerX = snap(((event.clientX - bounds.left) / bounds.width) * 100);
+    const pointerY = snap(((event.clientY - bounds.top) / bounds.height) * 100);
+    if (moving?.type === 'wall') {
+      const drag = dragRef.current;
+      if (drag.mode === 'resize') {
+        setPlan((current) => current.map((item) => item.id !== id ? item : drag.endpoint === 'start'
+          ? { ...item, x: pointerX, y: pointerY }
+          : { ...item, x2: pointerX, y2: pointerY }));
+      } else {
+        const deltaX = pointerX - drag.startX;
+        const deltaY = pointerY - drag.startY;
+        setPlan((current) => current.map((item) => item.id !== id ? item : {
+          ...item,
+          x: Math.max(3, Math.min(97, drag.x + deltaX)),
+          y: Math.max(3, Math.min(97, drag.y + deltaY)),
+          x2: Math.max(3, Math.min(97, drag.x2 + deltaX)),
+          y2: Math.max(3, Math.min(97, drag.y2 + deltaY)),
+        }));
+      }
+      return;
+    }
+    const rawX = snap(((event.clientX - bounds.left) / bounds.width) * 100);
+    const rawY = snap(((event.clientY - bounds.top) / bounds.height) * 100);
+    setPlan((current) => {
+      const moving = current.find((item) => item.id === id);
+      if (!moving || moving.type !== 'room') {
+        return current.map((item) => item.id === id ? { ...item, x: rawX, y: rawY } : item);
+      }
+      const movingBounds = dragRef.current.bounds;
+      const roomHalfWidth = movingBounds ? (movingBounds.width / bounds.width) * 50 : 9;
+      const roomHalfHeight = movingBounds ? (movingBounds.height / bounds.height) * 50 : 10;
+      const snapDistance = 5;
+      let nextX = rawX;
+      let nextY = rawY;
+      current.filter((item) => item.id !== id && item.type === 'room' && (item.floor ?? 0) === floor).forEach((other) => {
+        const otherHalfWidth = (140 / bounds.width) * 50;
+        const otherHalfHeight = (90 / bounds.height) * 50;
+        const horizontalTargets = [
+          other.x - otherHalfWidth - roomHalfWidth,
+          other.x + otherHalfWidth + roomHalfWidth,
+        ];
+        const verticalTargets = [
+          other.y - otherHalfHeight - roomHalfHeight,
+          other.y + otherHalfHeight + roomHalfHeight,
+        ];
+        horizontalTargets.forEach((target) => {
+          if (Math.abs(nextX - target) <= snapDistance) nextX = target;
+        });
+        verticalTargets.forEach((target) => {
+          if (Math.abs(nextY - target) <= snapDistance) nextY = target;
+        });
+      });
+      return current.map((item) => item.id === id
+        ? { ...item, x: Math.max(3, Math.min(97, nextX)), y: Math.max(3, Math.min(97, nextY)) }
+        : item);
+    });
   };
   const startDragging = (event, id) => {
     event.stopPropagation();
-    dragRef.current = { id };
+    const item = plan.find((entry) => entry.id === id);
+    const canvasBounds = canvasRef.current?.getBoundingClientRect();
+    dragRef.current = {
+      id,
+      bounds: event.currentTarget.getBoundingClientRect(),
+      startX: canvasBounds ? ((event.clientX - canvasBounds.left) / canvasBounds.width) * 100 : 0,
+      startY: canvasBounds ? ((event.clientY - canvasBounds.top) / canvasBounds.height) * 100 : 0,
+      x: item?.x,
+      y: item?.y,
+      x2: item?.x2,
+      y2: item?.y2,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const startWallResize = (event, id, endpoint) => {
+    event.stopPropagation();
+    dragRef.current = { id, mode: 'resize', endpoint };
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
   const stopDragging = (event) => {
@@ -238,7 +308,7 @@ function PlanStudio({ showToast }) {
       </div>}
       <div ref={canvasRef} className="plan-canvas" onClick={(event) => { if (event.target === event.currentTarget) addElement(event); }} role="application" aria-label="Grelha para desenhar a planta da casa">
         {plan.filter((item) => (item.floor ?? 0) === floor).map((item) => item.type === 'wall'
-          ? <button key={item.id} type="button" className={`plan-wall ${selectedId === item.id ? 'selected' : ''}`} style={{ left: `${item.x}%`, top: `${item.y}%`, width: `${Math.max(2, Math.hypot(item.x2 - item.x, item.y2 - item.y))}%`, transform: `rotate(${Math.atan2(item.y2 - item.y, item.x2 - item.x) * 180 / Math.PI}deg)` }} onClick={() => setSelectedId(item.id)} title="Clica para selecionar">Parede</button>
+          ? <React.Fragment key={item.id}><button type="button" className={`plan-wall ${selectedId === item.id ? 'selected' : ''}`} style={{ left: `${item.x}%`, top: `${item.y}%`, width: `${Math.max(2, Math.hypot(item.x2 - item.x, item.y2 - item.y))}%`, transform: `rotate(${Math.atan2(item.y2 - item.y, item.x2 - item.x) * 180 / Math.PI}deg)` }} onClick={() => setSelectedId(item.id)} onPointerDown={(event) => startDragging(event, item.id)} onPointerMove={(event) => moveElement(event, item.id)} onPointerUp={stopDragging} title="Arrasta a parede para mover">Parede</button>{selectedId === item.id && <><span className="wall-handle wall-handle-start" style={{ left: `${item.x}%`, top: `${item.y}%` }} onPointerDown={(event) => startWallResize(event, item.id, 'start')} onPointerMove={(event) => moveElement(event, item.id)} onPointerUp={stopDragging} /><span className="wall-handle wall-handle-end" style={{ left: `${item.x2}%`, top: `${item.y2}%` }} onPointerDown={(event) => startWallResize(event, item.id, 'end')} onPointerMove={(event) => moveElement(event, item.id)} onPointerUp={stopDragging} /></>}</React.Fragment>
           : <button key={item.id} type="button" className={`plan-element plan-element-${item.type} ${selectedId === item.id ? 'selected' : ''}`} style={{ left: `${item.x}%`, top: `${item.y}%`, transform: `translate(-50%, -50%) rotate(${item.rotation || 0}deg)` }} onClick={(event) => { event.stopPropagation(); if (tool === 'room') setSelectedId(item.id); else addElement(event, canvasRef.current); }} onPointerDown={(event) => startDragging(event, item.id)} onPointerMove={(event) => moveElement(event, item.id)} onPointerUp={stopDragging} title="Arrasta para mover · clica para selecionar">{item.label}</button>)}
         {plan.length === 0 && <div className="plan-empty"><span>+</span><strong>Começa a desenhar</strong><small>Escolhe uma ferramenta e clica na grelha</small></div>}
       </div>

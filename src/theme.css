@@ -273,6 +273,8 @@ body { background: var(--paper); }
 .plan-element.selected { outline: 2px solid #a96f59; outline-offset: 4px; }
 .plan-wall { position: absolute; z-index: 4; height: 8px; padding: 0; border: 0; border-top: 5px solid #4f574e; background: transparent; color: transparent; cursor: pointer; transform-origin: left center; touch-action: none; }
 .plan-wall.selected { border-top-color: #a96f59; filter: drop-shadow(0 0 3px rgba(169,111,89,.45)); }
+.wall-handle { position: absolute; z-index: 5; width: 16px; height: 16px; margin: -8px; border: 2px solid #a96f59; border-radius: 50%; background: #fff; cursor: grab; touch-action: none; }
+.wall-handle:active { cursor: grabbing; }
 .plan-element-room { min-width: 140px; min-height: 90px; padding: 10px; border: 2px solid #778276; background: rgba(216,221,210,.6); color: #4e584b; font-size: 10px; }
 .plan-element-door { width: 42px; height: 20px; border: 0; border-bottom: 3px solid #b9775e; background: transparent; color: #a56752; font-size: 8px; }
 .plan-element-window { width: 62px; height: 12px; border: 2px solid #778276; background: #d8e2df; color: #5e706b; font-size: 8px; }
