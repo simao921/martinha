@@ -3,7 +3,8 @@ import Lenis from 'lenis';
 import { supabase, supabaseConfigured } from './supabase.js';
 
 const photos = {
-  hero: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1800&q=88',
+  heroBefore: '/images/sala-depois.avif',
+  heroAfter: '/images/sala-antes.png',
   living: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1000&q=85',
   bedroom: 'https://images.unsplash.com/photo-1616486029423-aaa4789e8c9a?auto=format&fit=crop&w=1000&q=85',
   work: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1000&q=85',
@@ -63,6 +64,85 @@ function Metric({ label, value, note }) {
   return <article className="admin-metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></article>;
 }
 
+const planTools = [
+  { id: 'room', label: 'Divisão', icon: '□' },
+  { id: 'door', label: 'Porta', icon: '⌒' },
+  { id: 'window', label: 'Janela', icon: '▥' },
+];
+
+const furnitureSeed = [
+  ['Sofá', 'Sala'], ['Poltrona', 'Sala'], ['Mesa de centro', 'Sala'], ['Mesa lateral', 'Sala'], ['Estante', 'Sala'],
+  ['Móvel TV', 'Sala'], ['Aparador', 'Sala'], ['Banco', 'Sala'], ['Pufe', 'Sala'], ['Candeeiro de pé', 'Iluminação'],
+  ['Cama de casal', 'Quarto'], ['Cama individual', 'Quarto'], ['Mesa de cabeceira', 'Quarto'], ['Cómoda', 'Quarto'], ['Roupeiro', 'Quarto'],
+  ['Secretária', 'Trabalho'], ['Cadeira de escritório', 'Trabalho'], ['Estante baixa', 'Trabalho'], ['Candeeiro de mesa', 'Iluminação'], ['Banco alto', 'Cozinha'],
+  ['Mesa de jantar', 'Cozinha'], ['Cadeira de jantar', 'Cozinha'], ['Ilha', 'Cozinha'], ['Móvel de cozinha', 'Cozinha'], ['Frigorífico', 'Cozinha'],
+  ['Lavatório', 'Casa de banho'], ['Sanita', 'Casa de banho'], ['Banheira', 'Casa de banho'], ['Duche', 'Casa de banho'], ['Armário de casa de banho', 'Casa de banho'],
+  ['Planta grande', 'Decoração'], ['Espelho', 'Decoração'], ['Quadro', 'Decoração'], ['Tapete', 'Decoração'], ['Biombo', 'Decoração'],
+];
+const furnitureCatalog = Array.from({ length: 4 }, (_, collection) => furnitureSeed.map(([name, category], index) => ({
+  id: `${category}-${name}-${collection}`,
+  name: collection ? `${name} ${collection + 1}` : name,
+  category,
+}))).flat();
+
+function PlanStudio({ showToast }) {
+  const [tool, setTool] = useState('room');
+  const [furnitureSearch, setFurnitureSearch] = useState('');
+  const [furnitureCategory, setFurnitureCategory] = useState('Todos');
+  const [selectedFurniture, setSelectedFurniture] = useState(furnitureCatalog[0]);
+  const [plan, setPlan] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('martas-home-plan') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const addElement = (event) => {
+    if (event.target !== event.currentTarget) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const element = {
+      id: `${tool}-${Date.now()}`,
+      type: tool,
+      x: Math.round(((event.clientX - bounds.left) / bounds.width) * 100),
+      y: Math.round(((event.clientY - bounds.top) / bounds.height) * 100),
+      label: tool === 'room' ? `Divisão ${plan.filter((item) => item.type === 'room').length + 1}` : tool === 'door' ? 'Porta' : tool === 'window' ? 'Janela' : selectedFurniture.name,
+    };
+    setPlan((current) => [...current, element]);
+  };
+  const savePlan = () => {
+    window.localStorage.setItem('martas-home-plan', JSON.stringify(plan));
+    showToast('Planta guardada neste dispositivo.');
+  };
+  const removeElement = (id) => setPlan((current) => current.filter((item) => item.id !== id));
+  const filteredFurniture = furnitureCatalog.filter((item) => (furnitureCategory === 'Todos' || item.category === furnitureCategory) && item.name.toLowerCase().includes(furnitureSearch.toLowerCase()));
+  const selectFurniture = (item) => {
+    setSelectedFurniture(item);
+    setTool('furniture');
+  };
+  return (
+    <div className="plan-studio">
+      <div className="request-toolbar">
+        <div><h2>Atelier de plantas</h2><p>Desenha uma primeira ideia da casa por cima da grelha. Clica para adicionar elementos.</p></div>
+        <div className="plan-actions"><button className="export-button" type="button" onClick={() => { setPlan([]); showToast('Planta limpa.'); }}>Limpar</button><button className="settings-save" type="button" onClick={savePlan}>Guardar planta</button></div>
+      </div>
+      <div className="plan-toolbar" role="toolbar" aria-label="Ferramentas de desenho">
+        {[...planTools, { id: 'furniture', label: 'Móveis', icon: '▱' }].map((item) => <button key={item.id} type="button" className={tool === item.id ? 'active' : ''} onClick={() => setTool(item.id)}><b>{item.icon}</b>{item.label}</button>)}
+        <span className="plan-hint">Ferramenta ativa: <strong>{[...planTools, { id: 'furniture', label: 'Móveis' }].find((item) => item.id === tool)?.label}</strong></span>
+      </div>
+      {tool === 'furniture' && <div className="furniture-library">
+        <div className="furniture-library-heading"><div><strong>Biblioteca de móveis</strong><small>{furnitureCatalog.length} modelos disponíveis</small></div><input value={furnitureSearch} onChange={(event) => setFurnitureSearch(event.target.value)} placeholder="Pesquisar móvel…" aria-label="Pesquisar móveis" /></div>
+        <div className="furniture-categories">{['Todos', ...new Set(furnitureCatalog.map((item) => item.category))].map((category) => <button key={category} type="button" className={furnitureCategory === category ? 'active' : ''} onClick={() => setFurnitureCategory(category)}>{category}</button>)}</div>
+        <div className="furniture-grid">{filteredFurniture.map((item) => <button key={item.id} type="button" className={selectedFurniture.id === item.id ? 'selected' : ''} onClick={() => selectFurniture(item)}>{item.name}<small>{item.category}</small></button>)}</div>
+      </div>}
+      <div className="plan-canvas" onClick={addElement} role="application" aria-label="Grelha para desenhar a planta da casa">
+        {plan.map((item) => <button key={item.id} type="button" className={`plan-element plan-element-${item.type}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} onClick={(event) => { event.stopPropagation(); removeElement(item.id); }} title="Clica para remover">{item.label}</button>)}
+        {plan.length === 0 && <div className="plan-empty"><span>+</span><strong>Começa a desenhar</strong><small>Escolhe uma ferramenta e clica na grelha</small></div>}
+      </div>
+      <div className="plan-footer"><span>{plan.filter((item) => item.type === 'room').length} divisões · {plan.filter((item) => item.type === 'door').length} portas · {plan.filter((item) => item.type === 'window').length} janelas · {plan.filter((item) => item.type === 'furniture').length} móveis</span><small>Clica num elemento para o remover</small></div>
+    </div>
+  );
+}
+
 function AdminLeadList({ leads, onOpen, onViewAll }) {
   return (
     <section className="admin-lead-list">
@@ -115,6 +195,9 @@ function App() {
   const [room, setRoom] = useState(rooms[0]);
   const [mood, setMood] = useState(moods[0]);
   const [budget, setBudget] = useState('Até 500€');
+  const [warmth, setWarmth] = useState(58);
+  const [heroView, setHeroView] = useState('after');
+  const [heroCompare, setHeroCompare] = useState(50);
   const [menuOpen, setMenuOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
@@ -133,6 +216,13 @@ function App() {
   const [leadConfirmation, setLeadConfirmation] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [toast, setToast] = useState('');
+  const [savedIdeas, setSavedIdeas] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('martas-home-ideas') || '[]');
+    } catch {
+      return [];
+    }
+  });
 
   const signOutAdmin = async () => {
     if (!supabase) return;
@@ -302,6 +392,46 @@ function App() {
     window.setTimeout(() => setToast(''), 2800);
   };
 
+  const currentIdea = {
+    room,
+    mood: mood.name,
+    budget,
+    warmth,
+    createdAt: new Date().toISOString(),
+  };
+  const ideaKey = `${room}-${mood.name}-${budget}-${warmth}`;
+  const isIdeaSaved = savedIdeas.some((idea) => `${idea.room}-${idea.mood}-${idea.budget}-${idea.warmth}` === ideaKey);
+  const saveIdea = () => {
+    const nextIdeas = isIdeaSaved
+      ? savedIdeas.filter((idea) => `${idea.room}-${idea.mood}-${idea.budget}-${idea.warmth}` !== ideaKey)
+      : [currentIdea, ...savedIdeas].slice(0, 6);
+    setSavedIdeas(nextIdeas);
+    window.localStorage.setItem('martas-home-ideas', JSON.stringify(nextIdeas));
+    showToast(isIdeaSaved ? 'Ideia removida dos favoritos.' : 'Ideia guardada neste dispositivo.');
+  };
+  const resetIdea = () => {
+    setRoom(rooms[0]);
+    setMood(moods[0]);
+    setBudget('Até 500€');
+    setWarmth(58);
+    showToast('Configurador reiniciado.');
+  };
+  const shareIdea = async () => {
+    const shareText = `A minha ideia para a Marta's Home: ${room}, ${mood.name}, ${budget}.`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "A minha ideia — Marta's Home", text: shareText, url: window.location.href });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(`${shareText} ${window.location.href}`);
+        showToast('Ideia copiada para a área de transferência.');
+      } else {
+        showToast('A partilha não está disponível neste navegador.');
+      }
+    } catch (error) {
+      if (error?.name !== 'AbortError') showToast('Não foi possível partilhar a ideia.');
+    }
+  };
+
   const createLead = async (event) => {
     event.preventDefault();
     if (!supabase) {
@@ -460,13 +590,19 @@ function App() {
             <div className="hero-note"><span>01 / 03</span><i /> Não é mais do mesmo.</div>
           </div>
           <div className="hero-art">
-            <img className="hero-image" data-parallax="0.12" src={photos.hero} alt="Sala de estar criativa com cores quentes e mobiliário eclético" />
+            <img className="hero-image hero-image-before" data-parallax="0.12" src={photos.heroBefore} alt="Sala antes da transformação" />
+            <div className="hero-after-layer" style={{ clipPath: `inset(0 0 0 ${heroCompare}%)` }}>
+              <img className="hero-image hero-image-after" src={photos.heroAfter} alt="Sala depois da transformação" />
+              <div className="hero-side-label hero-side-label-after">DEPOIS</div>
+            </div>
             <div className="hero-image-tint" />
-            <div className="hero-stamp" data-parallax="-0.09"><span>CASAS<br />COM<br /><em>ATITUDE</em></span><b>✳</b></div>
+            <div className="hero-side-label hero-side-label-before" style={{ opacity: heroCompare === 0 ? 0 : 1 }}>ANTES</div>
+            <div className="hero-compare-line" style={{ left: `${heroCompare}%` }} aria-hidden="true"><span>↔</span></div>
+            <label className="hero-compare-control" htmlFor="hero-compare">Arrasta para comparar</label>
+            <input id="hero-compare" className="hero-compare-range" type="range" min="0" max="100" value={heroCompare} onChange={(event) => setHeroCompare(Number(event.target.value))} aria-label="Comparar antes e depois" />
             <div className="hero-caption"><span>01 — SALA DE ESTAR</span><span>Lisboa, Portugal</span></div>
-            <div className="hero-side-note">BOM GOSTO<br />NÃO TEM<br />PREÇO FIXO</div>
           </div>
-          <div className="hero-bottom"><span>DESCE, TEMOS IDEIAS</span><span className="down-mark">↓</span><span>38°43' N&nbsp; 9°08' W</span></div>
+          <div className="hero-bottom"><span>DESCE, TEMOS IDEIAS</span><span className="down-mark">↓</span></div>
         </section>
 
         <section className="manifesto section-pad" id="ideia">
@@ -488,12 +624,10 @@ function App() {
             <Reveal className="gallery-card gallery-card-large">
               <img data-parallax="0.1" src={photos.living} alt="Sala de estar com design maximalista e elementos artesanais" />
               <span className="image-number">01</span>
-              <div className="gallery-card-caption"><span>O CAOS BEM PENSADO</span><span>Uma sala, mil histórias <Arrow diagonal /></span></div>
             </Reveal>
             <Reveal className="gallery-card gallery-card-small" delay={180}>
               <img data-parallax="0.14" src={photos.bedroom} alt="Quarto acolhedor com uma composição de cores expressiva" />
               <span className="image-number">02</span>
-              <div className="gallery-card-caption"><span>DESCANSO COM PERSONALIDADE</span><span>Quarto fora do catálogo <Arrow diagonal /></span></div>
             </Reveal>
             <Reveal className="gallery-note" data-parallax="-0.08" delay={100}>
               <span className="note-star">✳</span>
@@ -531,6 +665,10 @@ function App() {
           </div>
           <div className="configurator">
             <Reveal className="configurator-steps">
+              <div className="configurator-toolbar">
+                <span>{savedIdeas.length} {savedIdeas.length === 1 ? 'ideia guardada' : 'ideias guardadas'}</span>
+                <button type="button" onClick={resetIdea}>Recomeçar ↺</button>
+              </div>
               <div className="config-group">
                 <p className="config-label"><span>01</span> QUE DIVISÃO MERECE AMOR?</p>
                 <div className="choice-list">
@@ -549,9 +687,14 @@ function App() {
                   {['Até 500€', '500€ — 1.500€', 'Quero conversar'].map((item) => <button key={item} className={budget === item ? 'budget active' : 'budget'} onClick={() => setBudget(item)}>{item}</button>)}
                 </div>
               </div>
+              <div className="config-group">
+                <div className="config-label config-range-label"><span>04</span><label htmlFor="warmth">QUANTO CALOR?</label><strong>{warmth}%</strong></div>
+                <input id="warmth" className="warmth-range" type="range" min="0" max="100" value={warmth} onChange={(event) => setWarmth(Number(event.target.value))} aria-label="Temperatura visual do ambiente" />
+                <div className="range-hints"><span>fresco</span><span>solar</span></div>
+              </div>
             </Reveal>
             <Reveal className="preview-card" delay={160}>
-              <img data-parallax="0.08" src={roomPhotos[room]} alt={`Inspiração de interiores para ${room.toLowerCase()}`} />
+              <img data-parallax="0.08" style={{ filter: `saturate(${0.72 + warmth / 180}) sepia(${warmth / 900})` }} src={roomPhotos[room]} alt={`Inspiração de interiores para ${room.toLowerCase()}`} />
               <div className="preview-overlay" style={{ '--mood-tint': mood.color }} />
               <div className="preview-top"><span>A TUA PRIMEIRA IDEIA</span><span>MH — 001</span></div>
               <div className="preview-info">
@@ -560,7 +703,12 @@ function App() {
                 <p><i style={{ backgroundColor: mood.color }} /> {mood.name} <span>·</span> {budget}</p>
                 <small className="preview-personal-note">Pensado para a tua casa. Ajustado ao teu orçamento.</small>
               </div>
-              <button className="preview-cta" type="button" onClick={() => setLeadFormOpen(true)}>Pedir uma proposta <Arrow diagonal /></button>
+              <div className="preview-actions">
+                <button className="preview-cta" type="button" onClick={() => setLeadFormOpen(true)}>Pedir uma proposta <Arrow diagonal /></button>
+                <button className="preview-icon-button" type="button" onClick={saveIdea} aria-label={isIdeaSaved ? 'Remover ideia dos favoritos' : 'Guardar ideia nos favoritos'}>{isIdeaSaved ? '♥' : '♡'}</button>
+                <button className="preview-icon-button" type="button" onClick={shareIdea} aria-label="Partilhar ideia">↗</button>
+              </div>
+              <div className="preview-utility"><span>Estimativa de decoração</span><strong>{budget === 'Até 500€' ? 'A partir de 500€' : budget === '500€ — 1.500€' ? '500€ — 1.500€' : 'A definir contigo'}</strong></div>
             </Reveal>
           </div>
         </section>
@@ -639,11 +787,12 @@ function App() {
             <button className={adminView === 'overview' ? 'admin-nav-item current' : 'admin-nav-item'} onClick={() => { setAdminView('overview'); setSelectedLeadId(null); }}><span>◫</span> Visão geral</button>
             <button className={adminView === 'requests' ? 'admin-nav-item current' : 'admin-nav-item'} onClick={() => { setAdminView('requests'); setSelectedLeadId(null); }}><span>▤</span> Pedidos <b>{leads.filter((lead) => lead.status === 'new').length}</b></button>
             <button className={adminView === 'settings' ? 'admin-nav-item current' : 'admin-nav-item'} onClick={() => { setAdminView('settings'); setSelectedLeadId(null); }}><span>⚙</span> Definições</button>
+            <button className={adminView === 'studio' ? 'admin-nav-item current' : 'admin-nav-item'} onClick={() => { setAdminView('studio'); setSelectedLeadId(null); }}><span>⌗</span> Atelier de plantas</button>
             <div className="admin-sidebar-bottom"><span className="admin-avatar">M</span><span><b>Marta</b><small>Gestora da loja</small></span></div>
           </aside>
           <section className="admin-main">
             <header className="admin-header">
-              <div><span className="admin-breadcrumb">MARTA’S HOME <span>/</span> {selectedLeadId ? 'PEDIDO' : adminView === 'overview' ? 'VISÃO GERAL' : adminView === 'requests' ? 'PEDIDOS' : 'DEFINIÇÕES'}</span><h1>{selectedLeadId ? 'Detalhe do pedido' : adminView === 'overview' ? 'Bom dia, Marta' : adminView === 'requests' ? 'Pedidos de projeto' : 'Definições da loja'}</h1></div>
+              <div><span className="admin-breadcrumb">MARTA’S HOME <span>/</span> {selectedLeadId ? 'PEDIDO' : adminView === 'overview' ? 'VISÃO GERAL' : adminView === 'requests' ? 'PEDIDOS' : adminView === 'studio' ? 'ATELIER DE PLANTAS' : 'DEFINIÇÕES'}</span><h1>{selectedLeadId ? 'Detalhe do pedido' : adminView === 'overview' ? 'Bom dia, Marta' : adminView === 'requests' ? 'Pedidos de projeto' : adminView === 'studio' ? 'Desenha a tua casa' : 'Definições da loja'}</h1></div>
               <div className="admin-header-actions"><span className="local-status"><i /> Sincronizado com Supabase</span><button className="admin-close" onClick={() => { setAdminOpen(false); void signOutAdmin(); }} aria-label="Terminar sessão e fechar painel">Sair <kbd>ESC</kbd></button></div>
             </header>
             <div className="admin-content">
@@ -685,6 +834,7 @@ function App() {
                   <div className="data-tools"><div><b>Exportar pedidos</b><span>Descarrega uma cópia CSV para guardar ou abrir numa folha de cálculo.</span></div><button className="export-button" onClick={exportLeads}>↓ Exportar CSV</button></div>
                 </div>
               )}
+              {!selectedLeadId && adminView === 'studio' && <PlanStudio showToast={showToast} />}
             </div>
           </section>
           {toast && <div className="admin-toast" role="status">{toast}</div>}
