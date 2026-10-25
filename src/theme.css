@@ -239,6 +239,7 @@ body { background: var(--paper); }
 .plan-studio { display: grid; gap: 20px; }
 .plan-actions { display: flex; align-items: center; gap: 9px; }
 .plan-name-input { width: 135px; padding: 9px 10px; border: 1px solid #dfe1da; color: #515850; font: inherit; font-size: 10px; }
+.floor-select { padding: 9px 10px; border: 1px solid #dfe1da; background: #fff; color: #515850; font: inherit; font-size: 10px; }
 .plan-toolbar { display: flex; align-items: center; gap: 7px; padding: 10px; border: 1px solid #e5e6df; background: #fff; }
 .plan-toolbar button { display: flex; align-items: center; gap: 7px; padding: 9px 12px; border: 1px solid #e2e3dc; background: #fafaf7; color: #60655d; cursor: pointer; font-size: 10px; }
 .plan-toolbar button b { font-size: 16px; font-weight: 400; color: #778276; }
@@ -270,6 +271,8 @@ body { background: var(--paper); }
 .plan-element-room { z-index: 1; }
 .plan-element-door, .plan-element-window, .plan-element-furniture { z-index: 3; }
 .plan-element.selected { outline: 2px solid #a96f59; outline-offset: 4px; }
+.plan-wall { position: absolute; z-index: 4; height: 8px; padding: 0; border: 0; border-top: 5px solid #4f574e; background: transparent; color: transparent; cursor: pointer; transform-origin: left center; touch-action: none; }
+.plan-wall.selected { border-top-color: #a96f59; filter: drop-shadow(0 0 3px rgba(169,111,89,.45)); }
 .plan-element-room { min-width: 140px; min-height: 90px; padding: 10px; border: 2px solid #778276; background: rgba(216,221,210,.6); color: #4e584b; font-size: 10px; }
 .plan-element-door { width: 42px; height: 20px; border: 0; border-bottom: 3px solid #b9775e; background: transparent; color: #a56752; font-size: 8px; }
 .plan-element-window { width: 62px; height: 12px; border: 2px solid #778276; background: #d8e2df; color: #5e706b; font-size: 8px; }

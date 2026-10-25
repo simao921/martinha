@@ -66,6 +66,7 @@ function Metric({ label, value, note }) {
 
 const planTools = [
   { id: 'room', label: 'Divisão', icon: '□' },
+  { id: 'wall', label: 'Parede', icon: '╱' },
   { id: 'door', label: 'Porta', icon: '⌒' },
   { id: 'window', label: 'Janela', icon: '▥' },
 ];
@@ -92,6 +93,8 @@ function PlanStudio({ showToast }) {
   const [furnitureSearch, setFurnitureSearch] = useState('');
   const [furnitureCategory, setFurnitureCategory] = useState('Todos');
   const [selectedFurniture, setSelectedFurniture] = useState(furnitureCatalog[0]);
+  const [floor, setFloor] = useState(0);
+  const [wallStart, setWallStart] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [planName, setPlanName] = useState('Casa nova');
   const [savedPlans, setSavedPlans] = useState(() => {
@@ -110,12 +113,27 @@ function PlanStudio({ showToast }) {
   });
   const addElement = (event, canvas = event.currentTarget) => {
     const bounds = canvas.getBoundingClientRect();
-    const snap = (value) => Math.max(4, Math.min(96, Math.round(value / 4) * 4));
+    const snap = (value) => Math.max(3, Math.min(97, Math.round(value / 2) * 2));
+    const x = snap(((event.clientX - bounds.left) / bounds.width) * 100);
+    const y = snap(((event.clientY - bounds.top) / bounds.height) * 100);
+    if (tool === 'wall') {
+      if (!wallStart) {
+        setWallStart({ x, y });
+      } else {
+        const element = { id: `wall-${Date.now()}`, type: 'wall', x: wallStart.x, y: wallStart.y, x2: x, y2: y, floor, rotation: 0 };
+        setPlan((current) => [...current, element]);
+        setSelectedId(element.id);
+        setWallStart(null);
+      }
+      return;
+    }
     const element = {
       id: `${tool}-${Date.now()}`,
       type: tool,
-      x: snap(((event.clientX - bounds.left) / bounds.width) * 100),
-      y: snap(((event.clientY - bounds.top) / bounds.height) * 100),
+      x,
+      y,
+      floor,
+      rotation: 0,
       label: tool === 'room' ? `Divisão ${plan.filter((item) => item.type === 'room').length + 1}` : tool === 'door' ? 'Porta' : tool === 'window' ? 'Janela' : selectedFurniture.name,
     };
     setPlan((current) => [...current, element]);
@@ -164,7 +182,7 @@ function PlanStudio({ showToast }) {
   const moveElement = (event, id) => {
     if (!dragRef.current || dragRef.current.id !== id || !canvasRef.current) return;
     const bounds = canvasRef.current.getBoundingClientRect();
-    const snap = (value) => Math.max(4, Math.min(96, Math.round(value / 4) * 4));
+    const snap = (value) => Math.max(3, Math.min(97, Math.round(value / 2) * 2));
     setPlan((current) => current.map((item) => item.id === id
       ? { ...item, x: snap(((event.clientX - bounds.left) / bounds.width) * 100), y: snap(((event.clientY - bounds.top) / bounds.height) * 100) }
       : item));
@@ -182,9 +200,16 @@ function PlanStudio({ showToast }) {
   };
   useEffect(() => {
     const handleDelete = (event) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
       if ((event.key === 'Delete' || event.key === 'Backspace') && selectedId) {
         event.preventDefault();
         removeSelected();
+      }
+      if (event.key.toLowerCase() === 'r' && selectedId) {
+        event.preventDefault();
+        setPlan((current) => current.map((item) => item.id === selectedId
+          ? { ...item, rotation: ((item.rotation || 0) + 90) % 360 }
+          : item));
       }
     };
     window.addEventListener('keydown', handleDelete);
@@ -199,7 +224,7 @@ function PlanStudio({ showToast }) {
     <div className="plan-studio">
       <div className="request-toolbar">
         <div><h2>Atelier de plantas</h2><p>Desenha uma primeira ideia da casa por cima da grelha. Clica para adicionar elementos.</p></div>
-        <div className="plan-actions"><input className="plan-name-input" value={planName} onChange={(event) => setPlanName(event.target.value)} aria-label="Nome da planta" placeholder="Nome da planta" /><button className="export-button" type="button" onClick={removeSelected} disabled={!selectedId}>Eliminar selecionado</button><button className="export-button" type="button" onClick={() => { setPlan([]); setSelectedId(null); showToast('Planta limpa.'); }}>Limpar</button><button className="settings-save" type="button" onClick={savePlan}>Guardar planta</button></div>
+        <div className="plan-actions"><select className="floor-select" value={floor} onChange={(event) => { setFloor(Number(event.target.value)); setWallStart(null); }} aria-label="Piso ativo">{[0, 1, 2, 3].map((item) => <option key={item} value={item}>{item === 0 ? 'Rés-do-chão' : `${item}º piso`}</option>)}</select><input className="plan-name-input" value={planName} onChange={(event) => setPlanName(event.target.value)} aria-label="Nome da planta" placeholder="Nome da planta" /><button className="export-button" type="button" onClick={removeSelected} disabled={!selectedId}>Eliminar selecionado</button><button className="export-button" type="button" onClick={() => { setPlan([]); setSelectedId(null); showToast('Planta limpa.'); }}>Limpar</button><button className="settings-save" type="button" onClick={savePlan}>Guardar planta</button></div>
       </div>
       <div className="plan-toolbar" role="toolbar" aria-label="Ferramentas de desenho">
         {[...planTools, { id: 'furniture', label: 'Móveis', icon: '▱' }].map((item) => <button key={item.id} type="button" className={tool === item.id ? 'active' : ''} onClick={() => setTool(item.id)}><b>{item.icon}</b>{item.label}</button>)}
@@ -212,10 +237,12 @@ function PlanStudio({ showToast }) {
         <div className="furniture-grid">{filteredFurniture.map((item) => <button key={item.id} type="button" className={selectedFurniture.id === item.id ? 'selected' : ''} onClick={() => selectFurniture(item)}>{item.name}<small>{item.category}</small></button>)}</div>
       </div>}
       <div ref={canvasRef} className="plan-canvas" onClick={(event) => { if (event.target === event.currentTarget) addElement(event); }} role="application" aria-label="Grelha para desenhar a planta da casa">
-        {plan.map((item) => <button key={item.id} type="button" className={`plan-element plan-element-${item.type} ${selectedId === item.id ? 'selected' : ''}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} onClick={(event) => { event.stopPropagation(); if (tool === 'room') setSelectedId(item.id); else addElement(event, canvasRef.current); }} onPointerDown={(event) => startDragging(event, item.id)} onPointerMove={(event) => moveElement(event, item.id)} onPointerUp={stopDragging} title="Arrasta para mover · clica para selecionar">{item.label}</button>)}
+        {plan.filter((item) => (item.floor ?? 0) === floor).map((item) => item.type === 'wall'
+          ? <button key={item.id} type="button" className={`plan-wall ${selectedId === item.id ? 'selected' : ''}`} style={{ left: `${item.x}%`, top: `${item.y}%`, width: `${Math.max(2, Math.hypot(item.x2 - item.x, item.y2 - item.y))}%`, transform: `rotate(${Math.atan2(item.y2 - item.y, item.x2 - item.x) * 180 / Math.PI}deg)` }} onClick={() => setSelectedId(item.id)} title="Clica para selecionar">Parede</button>
+          : <button key={item.id} type="button" className={`plan-element plan-element-${item.type} ${selectedId === item.id ? 'selected' : ''}`} style={{ left: `${item.x}%`, top: `${item.y}%`, transform: `translate(-50%, -50%) rotate(${item.rotation || 0}deg)` }} onClick={(event) => { event.stopPropagation(); if (tool === 'room') setSelectedId(item.id); else addElement(event, canvasRef.current); }} onPointerDown={(event) => startDragging(event, item.id)} onPointerMove={(event) => moveElement(event, item.id)} onPointerUp={stopDragging} title="Arrasta para mover · clica para selecionar">{item.label}</button>)}
         {plan.length === 0 && <div className="plan-empty"><span>+</span><strong>Começa a desenhar</strong><small>Escolhe uma ferramenta e clica na grelha</small></div>}
       </div>
-      <div className="plan-footer"><span>{plan.filter((item) => item.type === 'room').length} divisões · {plan.filter((item) => item.type === 'door').length} portas · {plan.filter((item) => item.type === 'window').length} janelas · {plan.filter((item) => item.type === 'furniture').length} móveis</span><small>Seleciona e arrasta · elimina pelo botão ou tecla Delete</small></div>
+      <div className="plan-footer"><span>{plan.filter((item) => (item.floor ?? 0) === floor && item.type === 'room').length} divisões · {plan.filter((item) => (item.floor ?? 0) === floor && item.type === 'wall').length} paredes · {plan.filter((item) => (item.floor ?? 0) === floor && item.type === 'furniture').length} móveis</span><small>{tool === 'wall' ? (wallStart ? 'Clica no segundo ponto da parede' : 'Clica em dois pontos para desenhar uma parede') : 'Arrasta · R roda 90° · Delete elimina'}</small></div>
       <section className="saved-plans">
         <div className="saved-plans-heading"><strong>Plantas guardadas</strong><span>{savedPlans.length}/20</span></div>
         {savedPlans.length === 0 ? <p className="saved-plans-empty">Ainda não tens plantas guardadas.</p> : <div className="saved-plans-list">{savedPlans.map((saved) => <article key={saved.id} className="saved-plan"><div><strong>{saved.name}</strong><small>{saved.elements.length} elementos · {new Date(saved.updatedAt).toLocaleDateString('pt-PT')}</small></div><div><button type="button" onClick={() => loadPlan(saved)}>Abrir</button><button type="button" onClick={() => deletePlan(saved.id)} aria-label={`Eliminar ${saved.name}`}>×</button></div></article>)}</div>}
