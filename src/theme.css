@@ -27,6 +27,7 @@ body { background: var(--paper); }
 .hero-note span { color: var(--orange); }
 .hero-note i { background: #bcbdb4; }
 .hero-art { margin: 90px 7vw 65px 0; overflow: hidden; }
+.hero-art { min-height: 620px; }
 .hero-copy { padding-right: 4vw; }
 .hero-image { border: 1px solid rgba(41,43,39,.22); box-shadow: 12px 12px 0 #c9cec2; }
 .hero-switcher { box-shadow: 0 8px 20px rgba(41,43,39,.14); }
@@ -91,7 +92,7 @@ body { background: var(--paper); }
 .footer-links a:hover { color: #d8ddd2; }
 
 .site-header { position: fixed; border-bottom: 1px solid rgba(41,43,39,.08); backdrop-filter: blur(14px); }
-.hero { min-height: min(820px, 100svh); }
+.hero { min-height: max(820px, 100svh); height: auto; }
 .hero-copy { padding-left: 11vw; }
 .hero h1 { max-width: 660px; }
 .hero-art { box-shadow: 12px 12px 0 #d4d8cd; }
@@ -317,7 +318,7 @@ body { background: var(--paper); }
   .hero-copy { padding: 72px 8vw 26px; }
   .hero h1 { font-size: clamp(67px, 17vw, 94px); }
   .hero-description { max-width: 250px; }
-  .hero-art { height: 400px; margin: 12px 9vw 52px 8vw; }
+  .hero-art { height: 400px; min-height: 0; margin: 12px 9vw 52px 8vw; }
   .hero-image { box-shadow: 8px 8px 0 #c9cec2; }
   .hero-stamp { width: 110px; height: 110px; left: -24px; }
   .round-link { width: 74px; height: 74px; bottom: 18px; right: 11vw; }
